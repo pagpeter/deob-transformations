@@ -1,6 +1,6 @@
 {
   "name": "deob-transformations",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Some babel transformations for deobfuscating nasty javascript",
   "main": "index.js",
   "scripts": {
