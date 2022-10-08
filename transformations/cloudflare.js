@@ -54,7 +54,7 @@ const getMixedStrings = (ast) => {
   }
   const splitted = rawStrings.split(seperator);
   return mixStrings(splitted, mixTimes);
-}
+};
 
 const getAllVariableValues = (ast) => {
   const variables = {};
@@ -143,7 +143,7 @@ const getAllVariableValues = (ast) => {
   traverse(ast, deob);
   // console.log(specialVariables);
   return specialVariables;
-}
+};
 
 const deobfuscate_mixed_strings = (ast) => {
   const strings = getMixedStrings(ast);
@@ -160,7 +160,7 @@ const deobfuscate_mixed_strings = (ast) => {
   };
 
   traverse(ast, deob);
-}
+};
 
 const unroll_switch_statements = (ast) => {
   vars = getAllVariableValues(ast);
@@ -207,15 +207,133 @@ const unroll_switch_statements = (ast) => {
     },
   };
   traverse(ast, deob);
-}
+};
+
+const remove_helper_functions = (ast) => {
+  /*
+  function a(a, b) {
+	  return a == b
+  }
+
+  a("stringa", "stringb")
+  =>
+
+  "stringa" == "stringb"
+
+  */
+
+  let functions = new Map();
+
+  traverse(ast, {
+    'FunctionDeclaration|FunctionExpression'(path) {
+      const { node } = path;
+      if (
+        path.node.body.body.length !== 1 ||
+        !t.isReturnStatement(node.body.body[0]) ||
+        !(
+          t.isBinaryExpression(node.body.body[0].argument) ||
+          t.isLogicalExpression(node.body.body[0].argument) ||
+          t.isCallExpression(node.body.body[0].argument)
+        )
+      )
+        return;
+
+      const parent = path.parentPath.node;
+      if (t.isFunctionDeclaration(node)) id = node.id.name;
+      else id = t.isIdentifier(parent.left) ? parent.left.name : parent.left;
+
+      const type = node.body.body[0].argument.type;
+
+      // get the displayed name, for example a.b.c = function() {}
+      chain = [];
+      if (t.isMemberExpression(id)) {
+        while (true) {
+          chain.push(id.property.name);
+          if (t.isIdentifier(id.object)) {
+            chain.push(id.object.name);
+            break;
+          } else {
+            id = id.object;
+          }
+        }
+        id = chain.reverse().join('.');
+      }
+
+      functions.set(id, {
+        argumentsLen: node.params.length,
+        type,
+        operator: node.body.body[0].argument?.operator,
+      });
+      // path.remove();
+    },
+  });
+
+  // console.log(functions);
+  traverse(ast, {
+    CallExpression(path) {
+      const { node } = path;
+
+      if (t.isIdentifier(node.callee)) id = node.callee.name;
+      else id = node.callee;
+
+      // get the displayed name, for example a.b.c = function() {}
+      chain = [];
+      if (t.isMemberExpression(id)) {
+        while (true) {
+          try {
+            chain.push(id.property?.name);
+          } catch (e) {
+            console.log(node, e, id);
+            return;
+          }
+          if (t.isIdentifier(id.object)) {
+            chain.push(id.object.name);
+            break;
+          } else {
+            id = id.object;
+          }
+        }
+        id = chain.reverse().join('.');
+      }
+      if (!functions.has(id)) return;
+      entry = functions.get(id);
+
+      try {
+        // if (entry.type == 'BinaryExpression') {
+        //   path.replaceWith(
+        //     t.binaryExpression(
+        //       entry.operator,
+        //       node.arguments[0],
+        //       node.arguments[1]
+        //     )
+        //   );
+        // } else if (entry.type == 'LogicalExpression') {
+        //   path.replaceWith(
+        //     t.logicalExpression(
+        //       entry.operator,
+        //       node.arguments[0],
+        //       node.arguments[1]
+        //     )
+        //   );
+        // } else
+        if (entry.type == 'CallExpression') {
+          callee = node.arguments.shift();
+          path.replaceWith(t.callExpression(callee, node.arguments));
+        }
+      } catch (e) {
+        console.log(e);
+      }
+    },
+  });
+};
 
 const deobfuscate_cloudflare = (ast) => {
-    try {
-        deobfuscate_mixed_strings(ast)
-    } catch {}
-    try {
-        unroll_switch_statements(ast)
-    } catch {}
-}
+  try {
+    deobfuscate_mixed_strings(ast);
+  } catch {}
+  try {
+    unroll_switch_statements(ast);
+  } catch {}
+};
 
-module.exports = {deobfuscate_cloudflare}
+module.exports = { deobfuscate_cloudflare, remove_helper_functions };

@@ -407,6 +407,131 @@ const remove_empty_statements = (ast) => {
   });
 };
 
+// const simplify_logical_expressions = (ast) => {
+//   /*
+//     Antibots tend to flatten if statements into logical expressions.
+//     This undoes that transformation.
+//     e.g: e && e.pageX && e.pageY ? (n = Math.floor(e.pageX), o = Math.floor(e.pageY)) : e && e.clientX && e.clientY && (n = Math.floor(e.clientX), o = Math.floor(e.clientY));
+//     turns into:
+//     if (e && e.pageX && e.pageY) {
+//         n = Math.floor(e.pageX);
+//         o = Math.floor(e.pageY);
+//     } else {
+//         if (e && e.clientX && e.clientY) {
+//             n = Math.floor(e.clientX);
+//             o = Math.floor(e.clientY);
+//         }
+//     }
+//   */
+//   traverse(ast, {
+//     ConditionalExpression(path) {
+//       if (
+//         !t.isLogicalExpression(path.node.alternate) ||
+//         !t.isLogicalExpression(path.node.alternate.left) ||
+//         !t.isSequenceExpression(path.node.alternate.right) ||
+//         !t.isLogicalExpression(path.node.test)
+//       ) {
+//         // console.log('Cant match conditional expression', path.node);
+//       }
+
+//       // make the "consequent" part
+//       let consequent;
+//       try {
+//         if (t.isSequenceExpression(path.node.consequent)) {
+//           let tmpstatements = [];
+//           path.node.consequent.expressions.forEach((elem) => {
+//             if (!t.isCallExpression(elem)) {
+//               tmpstatements.push(t.toStatement(elem));
+//             } else {
+//               tmpstatements.push(elem);
+//             }
+//           });
+//           consequent = t.blockStatement(tmpstatements);
+//         } else if (t.isAssignmentExpression(path.node.consequent)) {
+//           consequent = t.blockStatement([t.toStatement(path.node.consequent)]);
+//         } else {
+//           // console.log('Cant deobfuscate', path.node.consequent);
+//           return;
+//         }
+//       } catch (e) {
+//         console.log('CONSEQUENT', path.node.consequent, e);
+//         return;
+//       }
+
+//       // Make the "alternate" part (if not matched)
+//       let alternate;
+//       try {
+//         alternate = t.ifStatement(
+//           path.node.alternate.left,
+//           t.blockStatement(
+//             path.node.alternate.right.expressions.map((elem) =>
+//               t.toStatement(elem)
+//             )
+//           ),
+//           null
+//         );
+//       } catch (e) {
+//         console.log('ALTERNATE');
+//         return;
+//       }
+
+//       path.parentPath.replaceWith(
+//         t.ifStatement(path.node.test, consequent, alternate)
+//       );
+//     },
+//   });
+// };
+
+const rewrite_inline_if = (ast) => {
+  /*
+  a.c = a < b ? "a is less than b" : "a is not less than b";
+
+  if (a < b) {
+    a = "a is less than b"
+  } else {
+    a = "a is not less than b"
+  }
+  */
+
+  traverse(ast, {
+    ExpressionStatement(path) {
+      let { node } = path;
+      if (
+        t.isAssignmentExpression(node.expression) &&
+        t.isConditionalExpression(node.expression.right) &&
+        (t.isIdentifier(node.expression.left) ||
+          t.isMemberExpression(node.expression.left)) // &&
+        // t.isStringLiteral(node.expression.right.consequent) &&
+        // t.isStringLiteral(node.expression.right.alternate)
+      ) {
+        // Build up the if statement
+        ifStatement = t.ifStatement(
+          node.expression.right.test,
+          t.blockStatement([
+            t.toStatement(
+              t.assignmentExpression(
+                node.expression.operator,
+                node.expression.left,
+                node.expression.right.consequent
+              )
+            ),
+          ]),
+          t.blockStatement([
+            t.toStatement(
+              t.assignmentExpression(
+                node.expression.operator,
+                node.expression.left,
+                node.expression.right.alternate
+              )
+            ),
+          ])
+        );
+        path.replaceWith(ifStatement);
+      }
+    },
+  });
+};
+
 module.exports = {
   deobfuscate_object_calls,
   deobfuscate_hidden_false,
@@ -420,4 +545,6 @@ module.exports = {
   deobfuscate_jsfuck,
   constant_folding,
   remove_empty_statements,
+  // simplify_logical_expressions,
+  rewrite_inline_if,
 };
