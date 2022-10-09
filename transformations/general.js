@@ -254,12 +254,11 @@ const remove_comma_statements = (ast) => {
         path.replaceWithMultiple(expressionArr);
       }
     },
+
     IfStatement(path) {
       const { node } = path;
       const { test } = node;
-
       if (!t.isSequenceExpression(test)) return;
-
       const { expressions } = test;
 
       expressions.forEach((expression, index) => {
@@ -269,28 +268,6 @@ const remove_comma_statements = (ast) => {
           node.test = expression;
         }
       });
-    },
-    FunctionDeclaration(path) {
-      if (!t.isBlockStatement(path.node.body)) return;
-
-      const { body } = path.node.body;
-      if (body.length !== 1) return;
-
-      const [statement] = body;
-      if (!t.isExpressionStatement(statement)) return;
-      const { expression } = statement;
-      if (!t.isSequenceExpression(expression)) return;
-
-      newExpressions = [];
-      expression.expressions.forEach((e) => {
-        if (t.isAssignmentExpression(e)) {
-          newExpressions.push(t.expressionStatement(e));
-        } else {
-          newExpressions.push(e);
-        }
-      });
-
-      path.node.body.body = newExpressions;
     },
 
     AssignmentExpression(path) {
@@ -305,34 +282,48 @@ const remove_comma_statements = (ast) => {
         }
       });
     },
+
+    // FunctionDeclaration(path) {
+    //   if (!t.isBlockStatement(path.node.body)) return;
+
+    //   const { body } = path.node.body;
+    //   if (body.length !== 1) return;
+
+    //   const [statement] = body;
+    //   if (!t.isExpressionStatement(statement)) return;
+    //   const { expression } = statement;
+    //   if (!t.isSequenceExpression(expression)) return;
+
+    //   newExpressions = [];
+    //   expression.expressions.forEach((e) => {
+    //     if (t.isAssignmentExpression(e)) {
+    //       newExpressions.push(t.expressionStatement(e));
+    //     } else {
+    //       newExpressions.push(e);
+    //     }
+    //   });
+
+    //   path.node.body.body = newExpressions;
+    // },
+
     ExpressionStatement(path) {
       if (!t.isSequenceExpression(path.node.expression)) return;
       expressions = path.node.expression.expressions;
-      newExpressions = [];
-      expressions.forEach((expression) => {
-        newExpressions.push(t.expressionStatement(expression));
-        // if (t.isAssignmentExpression(expression)) {
-        //   newExpressions.push(expression);
-        // } else if (t.isBinaryExpression(expression)) {
-        //   newExpressions.push(
-        //     t.assignmentExpression('=', expression.left, expression.right)
-        //   );
-        // }
-      });
-
-      path.replaceWithMultiple(newExpressions);
+      path.replaceWithMultiple(expressions);
     },
+
     ForStatement(path) {
       if (!t.isSequenceExpression(path.node.init)) return;
+      if (path.node.init.expressions.length < 1) return;
       const expressions = path.node.init.expressions;
 
-      expressions.forEach((expression, index) => {
-        if (index === expressions.length - 1) {
-          path.node.init = expression;
-        } else {
-          path.insertBefore(t.expressionStatement(expression));
-        }
+      expressions.forEach((e, i) => {
+        if (i === expressions.length - 1) return;
+        path.insertBefore(t.expressionStatement(e));
       });
+      if (!path.node.init) return;
+      if (!path.node.init.expressions) return;
+      path.node.init.expressions = [expressions[expressions.length - 1]];
     },
   });
 };
