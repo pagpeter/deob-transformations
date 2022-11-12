@@ -64,6 +64,14 @@ const constant_folding = (ast) => {
         right.remove();
       }
     },
+      LogicalExpression(path) {
+        const { node } = path;
+		if (node.operator === "&&") {
+			if (t.isStringLiteral(node.left) && t.isStringLiteral(node.right)) {
+       	         	path.replaceWith(t.booleanLiteral((!!node.left.value) && (!!node.right.value)))
+            }
+        }
+      }
   };
 
   // Execute the visitor
@@ -283,28 +291,28 @@ const remove_comma_statements = (ast) => {
       });
     },
 
-    // FunctionDeclaration(path) {
-    //   if (!t.isBlockStatement(path.node.body)) return;
+    FunctionDeclaration(path) {
+      if (!t.isBlockStatement(path.node.body)) return;
 
-    //   const { body } = path.node.body;
-    //   if (body.length !== 1) return;
+      const { body } = path.node.body;
+      if (body.length !== 1) return;
 
-    //   const [statement] = body;
-    //   if (!t.isExpressionStatement(statement)) return;
-    //   const { expression } = statement;
-    //   if (!t.isSequenceExpression(expression)) return;
+      const [statement] = body;
+      if (!t.isExpressionStatement(statement)) return;
+      const { expression } = statement;
+      if (!t.isSequenceExpression(expression)) return;
 
-    //   newExpressions = [];
-    //   expression.expressions.forEach((e) => {
-    //     if (t.isAssignmentExpression(e)) {
-    //       newExpressions.push(t.expressionStatement(e));
-    //     } else {
-    //       newExpressions.push(e);
-    //     }
-    //   });
+      newExpressions = [];
+      expression.expressions.forEach((e) => {
+        if (t.isAssignmentExpression(e)) {
+          newExpressions.push(t.expressionStatement(e));
+        } else {
+          newExpressions.push(e);
+        }
+      });
 
-    //   path.node.body.body = newExpressions;
-    // },
+      path.node.body.body = newExpressions;
+    },
 
     ExpressionStatement(path) {
       if (!t.isSequenceExpression(path.node.expression)) return;
