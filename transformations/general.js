@@ -64,14 +64,16 @@ const constant_folding = (ast) => {
         right.remove();
       }
     },
-      LogicalExpression(path) {
-        const { node } = path;
-		if (node.operator === "&&") {
-			if (t.isStringLiteral(node.left) && t.isStringLiteral(node.right)) {
-       	         	path.replaceWith(t.booleanLiteral((!!node.left.value) && (!!node.right.value)))
-            }
+    LogicalExpression(path) {
+      const { node } = path;
+      if (node.operator === '&&') {
+        if (t.isStringLiteral(node.left) && t.isStringLiteral(node.right)) {
+          path.replaceWith(
+            t.booleanLiteral(!!node.left.value && !!node.right.value)
+          );
         }
       }
+    },
   };
 
   // Execute the visitor
@@ -531,6 +533,40 @@ const rewrite_inline_if = (ast) => {
   });
 };
 
+function rewrite_inline_logical_expression(ast) {
+  /*
+
+  function a() {
+	  return g=a, h instanceof g.Function && g.Function.prototype.toString.call(h).indexOf("[native code]") > 0;
+  }
+
+  to
+
+  function a() {
+    if (h instanceof g.Function) {
+      _temp = g.Function.prototype.toString.call(h).indexOf("[native code]") > 0;
+    }
+
+    return g = a, _temp;
+  }
+
+  */
+  traverse(ast, {
+    LogicalExpression(path) {
+      const { node } = path;
+      if (node.operator !== '&&') return;
+      let id = path.scope.generateUidIdentifier();
+      let body = t.blockStatement([
+        t.toStatement(t.assignmentExpression('=', id, node.right)),
+      ]);
+      let ifStatement = t.ifStatement(node.left, body);
+
+      path.getStatementParent().insertBefore(ifStatement);
+      path.replaceWith(id);
+    },
+  });
+}
+
 module.exports = {
   deobfuscate_object_calls,
   deobfuscate_hidden_false,
@@ -546,4 +582,5 @@ module.exports = {
   remove_empty_statements,
   // simplify_logical_expressions,
   rewrite_inline_if,
+  rewrite_inline_logical_expression,
 };

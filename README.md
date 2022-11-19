@@ -196,6 +196,24 @@ const m = {
 console.log(m.a);
 ```
 
+### `rewrite_inline_logical_expression(ast)`
+
+```js
+  function a() {
+	  return g=a, h instanceof g.Function && g.Function.prototype.toString.call(h).indexOf("[native code]") > 0;
+  }
+
+  // to
+
+  function a() {
+    if (h instanceof g.Function) {
+      _temp = g.Function.prototype.toString.call(h).indexOf("[native code]") > 0;
+    }
+
+    return g = a, _temp;
+  }
+```
+
 ### `deobfuscate_cloudflare(ast)`
 
 Custom cloudflare obfuscator, does some more transformations.
