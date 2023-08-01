@@ -1,10 +1,10 @@
-const parser = require('@babel/parser');
-const traverse = require('@babel/traverse').default;
-const t = require('@babel/types');
-const generate = require('@babel/generator').default;
-const beautify = require('js-beautify');
-const { readFileSync, writeFile, write } = require('fs');
-const crypto = require('crypto');
+const parser = require("@babel/parser");
+const traverse = require("@babel/traverse").default;
+const t = require("@babel/types");
+const generate = require("@babel/generator").default;
+const beautify = require("js-beautify");
+const { readFileSync, writeFile, write } = require("fs");
+const crypto = require("crypto");
 
 const deobfuscate_object_calls = (ast) => {
   const validIdentifierRegex =
@@ -28,9 +28,9 @@ const constant_folding = (ast) => {
   // Visitor for constant folding
   const foldConstantsVisitor = {
     BinaryExpression(path) {
-      const left = path.get('left');
-      const right = path.get('right');
-      const operator = path.get('operator').node;
+      const left = path.get("left");
+      const right = path.get("right");
+      const operator = path.get("operator").node;
 
       if (t.isStringLiteral(left.node) && t.isStringLiteral(right.node)) {
         // In this case, we can use the old algorithm
@@ -50,7 +50,7 @@ const constant_folding = (ast) => {
         //Check if the right sideis a StringLiteral. If it isn't, skip this node by returning.
         if (!t.isStringLiteral(left.node.right)) return;
         // Check if the operator is addition (+). If it isn't, skip this node by returning.
-        if (operator !== '+') return;
+        if (operator !== "+") return;
 
         // If all conditions are fine:
 
@@ -59,14 +59,14 @@ const constant_folding = (ast) => {
           left.node.right.value + right.node.value
         );
         // Replace the _right-most edge of the left-side_ with `concatResult`.
-        left.get('right').replaceWith(concatResult);
+        left.get("right").replaceWith(concatResult);
         //Remove the original right side of the expression as it is now a duplicate.
         right.remove();
       }
     },
     LogicalExpression(path) {
       const { node } = path;
-      if (node.operator === '&&') {
+      if (node.operator === "&&") {
         if (t.isStringLiteral(node.left) && t.isStringLiteral(node.right)) {
           path.replaceWith(
             t.booleanLiteral(!!node.left.value && !!node.right.value)
@@ -84,7 +84,7 @@ const constant_folding = (ast) => {
 const deobfuscate_jsfuck = (ast) => {
   const fixArrays = {
     ArrayExpression(path) {
-      for (elem of path.get('elements')) {
+      for (elem of path.get("elements")) {
         if (!elem.node) {
           elem.replaceWith(t.valueToNode(undefined));
         }
@@ -96,11 +96,11 @@ const deobfuscate_jsfuck = (ast) => {
 
   // Visitor for constant folding
   const constantFold = {
-    'BinaryExpression|UnaryExpression'(path) {
+    "BinaryExpression|UnaryExpression"(path) {
       const { node } = path;
       if (
         t.isUnaryExpression(node) &&
-        (node.operator == '-' || node.operator == 'void')
+        (node.operator == "-" || node.operator == "void")
       )
         return;
       let { confident, value } = path.evaluate(); // Evaluate the binary expression
@@ -122,13 +122,13 @@ const deobfuscate_hidden_false = (ast) => {
   const deob = {
     UnaryExpression(p) {
       if (p.node.argument == undefined) return;
-      if (p.node.operator != '!') return;
+      if (p.node.operator != "!") return;
 
       // get every '!'
 
       if (
         t.isUnaryExpression(p.node.argument) &&
-        p.node.argument.operator == '!'
+        p.node.argument.operator == "!"
       ) {
         // get every '!!'
         if (t.isArrayExpression(p.node.argument.argument)) {
@@ -139,7 +139,7 @@ const deobfuscate_hidden_false = (ast) => {
       }
       if (
         t.isArrayExpression(p.node.argument) &&
-        JSON.stringify(p.node.argument.elements) == '[]'
+        JSON.stringify(p.node.argument.elements) == "[]"
       ) {
         // get every '![]'
         // replace with 'false'
@@ -162,13 +162,15 @@ const delete_unused = (ast) => {
   // https://steakenthusiast.github.io/2022/06/04/Deobfuscating-Javascript-via-AST-Removing-Dead-or-Unreachable-Code/
   // remove unused variables and functions
   const deob = {
-    'VariableDeclarator|FunctionDeclaration'(path) {
-      const { node, scope } = path;
-      const { constant, referenced } = scope.getBinding(node.id.name);
-      // If the variable is constant and never referenced, remove it.
-      if (constant && !referenced) {
-        path.remove();
-      }
+    "VariableDeclarator|FunctionDeclaration"(path) {
+      try {
+        const { node, scope } = path;
+        const { constant, referenced } = scope.getBinding(node.id.name);
+        // If the variable is constant and never referenced, remove it.
+        if (constant && !referenced) {
+          path.remove();
+        }
+      } catch {}
     },
   };
 
@@ -229,11 +231,11 @@ const remove_dead_else = (ast) => {
           delete path.node.alernate;
           if (t.isBlockStatement(alternate)) {
             path.replaceWith(
-              t.ifStatement(t.unaryExpression('!', test), alternate)
+              t.ifStatement(t.unaryExpression("!", test), alternate)
             );
           } else if (t.isIfStatement(alternate)) {
             path.replaceWith(
-              t.ifStatement(t.unaryExpression('!', test), alternate)
+              t.ifStatement(t.unaryExpression("!", test), alternate)
             );
           }
         } else if (shouldRemove(consequent) && alternate == null) {
@@ -256,10 +258,17 @@ const remove_comma_statements = (ast) => {
         const { expressions } = node.argument;
         expressions.forEach((node, indx) => {
           if (indx !== expressions.length - 1) {
-            expressionArr.push(node);
-          } else {
-            expressionArr.push(t.returnStatement(node));
-          }
+            if (
+              node.type === "CallExpression" &&
+              node.callee.type === "FunctionExpression"
+            )
+              expressionArr.push(
+                t.emptyStatement(),
+                t.unaryExpression("!", node),
+                t.emptyStatement()
+              );
+            else expressionArr.push(node);
+          } else expressionArr.push(t.returnStatement(node));
         });
         path.replaceWithMultiple(expressionArr);
       }
@@ -288,7 +297,7 @@ const remove_comma_statements = (ast) => {
         if (index !== expressions.length - 1) {
           path.insertBefore(t.expressionStatement(expression));
         } else {
-          path.replaceWith(t.AssignmentExpression('=', node.left, expression));
+          path.replaceWith(t.AssignmentExpression("=", node.left, expression));
         }
       });
     },
@@ -319,7 +328,11 @@ const remove_comma_statements = (ast) => {
     ExpressionStatement(path) {
       if (!t.isSequenceExpression(path.node.expression)) return;
       expressions = path.node.expression.expressions;
-      path.replaceWithMultiple(expressions);
+      expressionsAndStatements = [];
+      expressions.forEach((ex) =>
+        expressionsAndStatements.push(ex, t.emptyStatement())
+      );
+      path.replaceWithMultiple(expressionsAndStatements);
     },
 
     ForStatement(path) {
@@ -340,7 +353,7 @@ const remove_comma_statements = (ast) => {
 
 const remove_hex_numbers = (ast) => {
   traverse(ast, {
-    'DirectiveLiteral|StringLiteral|NumericLiteral'(path) {
+    "DirectiveLiteral|StringLiteral|NumericLiteral"(path) {
       if (!path.node.extra) return;
       try {
         if (path.node.extra.exoressionValue) {
@@ -381,12 +394,10 @@ const remove_useless_if = (ast) => {
 };
 
 const rename_identifiers = (ast) => {
-  const letters = 'A B C D E F G H I J K L M N O P Q R S T U V W X Y Z'.split(
-    ' '
-  );
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
   traverse(ast, {
-    'FunctionDeclaration|FunctionExpression'(path) {
+    "FunctionDeclaration|FunctionExpression"(path) {
       let paramsToRename = {};
       path.node.params.forEach((elem, i) => {
         if (i <= 26) paramsToRename[elem.name] = `param${letters[i]}`;
@@ -554,10 +565,10 @@ function rewrite_inline_logical_expression(ast) {
   traverse(ast, {
     LogicalExpression(path) {
       const { node } = path;
-      if (node.operator !== '&&') return;
+      if (node.operator !== "&&") return;
       let id = path.scope.generateUidIdentifier();
       let body = t.blockStatement([
-        t.toStatement(t.assignmentExpression('=', id, node.right)),
+        t.toStatement(t.assignmentExpression("=", id, node.right)),
       ]);
       let ifStatement = t.ifStatement(node.left, body);
 
