@@ -437,7 +437,6 @@ const rename_identifiers = (ast, custom = []) => {
             const newName =
                 (p.node.type === "VariableDeclarator" ? "var_" : "func_") +
                 (custom?.[c] === undefined ? names[c] : custom?.[c]);
-            console.log("RENAMING", n, newName);
             if (p.node.type === "VariableDeclarator") p.scope.rename(n, newName);
             else p.parentPath.scope.rename(n, newName);
             c++;
