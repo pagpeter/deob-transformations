@@ -1,33 +1,33 @@
 {
-  "name": "deob-transformations",
-  "version": "1.0.4",
-  "description": "Some babel transformations for deobfuscating nasty javascript",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/wwhtrbbtt/deob-transformations.git"
-  },
-  "keywords": [
-    "babel",
-    "deobfuscating",
-    "babel",
-    "transformations",
-    "reverse-engineering"
-  ],
-  "author": "peet",
-  "license": "UNLICENSED",
-  "bugs": {
-    "url": "https://github.com/wwhtrbbtt/deob-transformations/issues"
-  },
-  "homepage": "https://github.com/wwhtrbbtt/deob-transformations#readme",
-  "dependencies": {
-    "@babel/generator": "^7.19.3",
-    "@babel/parser": "^7.19.3",
-    "@babel/traverse": "^7.19.3",
-    "@babel/types": "^7.19.3",
-    "js-beautify": "^1.14.6"
-  }
+    "name": "deob-transformations",
+    "version": "1.0.5",
+    "description": "Some babel transformations for deobfuscating nasty javascript",
+    "main": "index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/wwhtrbbtt/deob-transformations.git"
+    },
+    "keywords": [
+        "babel",
+        "deobfuscating",
+        "babel",
+        "transformations",
+        "reverse-engineering"
+    ],
+    "author": "peet",
+    "license": "UNLICENSED",
+    "bugs": {
+        "url": "https://github.com/wwhtrbbtt/deob-transformations/issues"
+    },
+    "homepage": "https://github.com/wwhtrbbtt/deob-transformations#readme",
+    "dependencies": {
+        "@babel/generator": "^7.23.0",
+        "@babel/parser": "^7.23.0",
+        "@babel/traverse": "^7.23.2",
+        "@babel/types": "^7.23.0",
+        "js-beautify": "^1.14.11"
+    }
 }

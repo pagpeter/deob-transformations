@@ -7,7 +7,7 @@ It can be installed from [npm](https://www.npmjs.com/package/deob-transformation
 ## Example
 
 ```js
-const transformations = require('deob-transformations');
+const transformations = require("deob-transformations");
 
 const code = `
 function _aegh(){debugger;};const z = "l";const zz = "o"
@@ -61,7 +61,7 @@ https://steakenthusiast.github.io/2022/05/28/Deobfuscating-Javascript-via-AST-Ma
 
 https://steakenthusiast.github.io/2022/06/14/Deobfuscating-Javascript-via-AST-Deobfuscating-a-Peculiar-JSFuck-style-Case/
 
-### `rename_identifiers(ast)`
+### `rename_function_arguments(ast)`
 
 Rename the arguments of a function to be more uniform and readable. Not always a good transformation to do.
 
@@ -70,7 +70,32 @@ Rename the arguments of a function to be more uniform and readable. Not always a
 fun = (rw, srdgb, a3r, s_sar) => {};
 
 // After
-fun = (paramA, paramB, paramC, paramD) => {};
+fun = (arg_a, arg_b, arg_c, arg_d) => {};
+```
+
+### `rename_identifiers(ast)`
+
+Renames all identifiers in variable declarators. Also renames function names.
+
+```js
+// Before
+
+function O00O11(O00O11, O00O11I1I, O00O11II1, O0OO11I1I) {}
+const O00O11II1 = () => {};
+const O00O11I1I = "hello";
+const O0OO11I1I = "world";
+
+// After
+function func_aaa(O00O11, O00O11I1I, O00O11II1, O0OO11I1I) {}
+const var_aab = () => {};
+const var_aac = "hello";
+const var_aad = "world";
+
+// Together with rename_function_arguments(ast)
+function func_aaa(arg_aaa, arg_aab, arg_aac, arg_aad) {}
+const var_aab = () => {};
+const var_aac = "hello";
+const var_aad = "world";
 ```
 
 ### `deobfuscate_hidden_false(ast)`
@@ -94,48 +119,50 @@ Removes useless if statements
 ```js
 // Before
 if (true) {
-  console.log('Hi!');
+    console.log("Hi!");
 }
 
 // After
-console.log('Hi!');
+console.log("Hi!");
 ```
 
 ```js
 // Before
 if (false) {
-  console.log('Hi!');
+    console.log("Hi!");
 }
-console.log('Hey');
+console.log("Hey");
 
 // After
-console.log('Hey'); // the if statement get's never exucted, so it get's removed
+console.log("Hey"); // the if statement get's never exucted, so it get's removed
 ```
 
 This transformation is often useful after other transformation, for example `deobfuscate_hidden_false`
 
-### `remove_hex_numbers(ast)`
+### `replace_hex_encoded(ast)`
+
+Replaces hexadecimal strings and encoded strings with a readable value
 
 ```js
 // Before
 const a = 0x01;
-console.log('Hello\x20World');
+console.log("Hello\x20World");
 
 // After
 const a = 1;
-console.log('Hello World');
+console.log("Hello World");
 ```
 
 ### `remove_comma_statements(ast)`
 
 ```js
 // Before
-for (b = 2, c = 5, console.log('123'), a; true; c++) {}
+for (b = 2, c = 5, console.log("123"), a; true; c++) {}
 
 // After
 b = 2;
 c = 5;
-console.log('123');
+console.log("123");
 
 for (a; true; c++) {}
 ```
@@ -149,12 +176,12 @@ This does not include dictionaries or arrays.
 
 ```js
 // Before
-const a = '1';
-const b = 'Hi!';
+const a = "1";
+const b = "Hi!";
 console.log(b);
 
 // After
-console.log('Hi!');
+console.log("Hi!");
 ```
 
 ### `remove_dead_else(ast)`
@@ -162,13 +189,13 @@ console.log('Hi!');
 ```js
 // Before
 if (something) {
-  console.log('Hi!');
+    console.log("Hi!");
 } else {
 }
 
 // After
 if (something) {
-  console.log('Hi!');
+    console.log("Hi!");
 }
 ```
 
@@ -180,18 +207,18 @@ Deletes all read or unreachable code.
 
 ### `deobfuscate_object_calls(ast)`
 
-Uses the dot notation everywhere
+Makes the code use the dot notation everywhere
 
 ```js
 // Before
 const m = {
-  a: 'Hello, World!',
+    a: "Hello, World!",
 };
-console['log'](m['a']);
+console["log"](m["a"]);
 
 // After
 const m = {
-  a: 'Hello, World!',
+    a: "Hello, World!",
 };
 console.log(m.a);
 ```
@@ -199,21 +226,17 @@ console.log(m.a);
 ### `rewrite_inline_logical_expression(ast)`
 
 ```js
-  function a() {
-	  return g=a, h instanceof g.Function && g.Function.prototype.toString.call(h).indexOf("[native code]") > 0;
-  }
+// Before
+function a() {
+    return (g = a), h instanceof g.Function && g.Function.prototype.toString.call(h).indexOf("[native code]") > 0;
+}
 
-  // to
-
-  function a() {
+// After
+function a() {
     if (h instanceof g.Function) {
-      _temp = g.Function.prototype.toString.call(h).indexOf("[native code]") > 0;
+        _temp = g.Function.prototype.toString.call(h).indexOf("[native code]") > 0;
     }
 
-    return g = a, _temp;
-  }
+    return (g = a), _temp;
+}
 ```
-
-### `deobfuscate_cloudflare(ast)`
-
-Custom cloudflare obfuscator, does some more transformations.
